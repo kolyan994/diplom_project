@@ -13,7 +13,6 @@ vk2 = vk_api.VkApi(token=user_token).get_api()
 
 def get_user_info(user_id):
 	user_info = vk.users.get(user_id=user_id, fields='bdate, city, sex')
-	print(user_info)
 	return user_info[0]
 
 def search_users(user_info, offset, city=1, age_from=18, age_to=30):
@@ -32,7 +31,6 @@ def search_users(user_info, offset, city=1, age_from=18, age_to=30):
 	else:
 		sex = 1
 
-	print(city, age_from, age_to)
 	users_list = vk2.users.search(city=city, sex=sex, age_from=age_from, age_to=age_to, has_photo=1, count=1, offset=offset)
 
 	return users_list['items'][0]['id']
