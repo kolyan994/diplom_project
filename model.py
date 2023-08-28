@@ -37,6 +37,8 @@ class ModelProcessor:
                     page = 'main',
                     last_person = 0)
                 s.add(user)
+                s.flush()
+                s.refresh(user)
                 s.commit()
         return user
 
