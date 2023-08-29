@@ -16,12 +16,11 @@ class VKinderBot:
     def __init__(self) -> None:
         dotenv.load_dotenv()
         self.token = os.getenv("VK_GROUP_TOKEN")
+        self.auth_link = os.getenv('AUTH_LINK')
         self.vk_session = vk_api.VkApi(token=self.token)
         self.longpoll = VkLongPoll(self.vk_session)
         self.create_buttons()
-        USER = os.getenv('USER_DB')
-        PASSWORD = os.getenv('PASSWORD_DB')
-        self.db = ModelProcessor(USER, PASSWORD)
+        self.db = ModelProcessor()
 
     def create_buttons(self):
         def get_but(text, color):
@@ -53,15 +52,22 @@ class VKinderBot:
         favourites_keyboard = json.dumps(favourites_keyboard, ensure_ascii = False).encode('utf-8')
         self.favourites_keyboard = str(favourites_keyboard.decode('utf-8'))
 
-    def write_msg(self, user_id, message):
-        self.vk_session.method('messages.send', {'user_id': user_id, 'message': message,  'random_id': 0, 'keyboard': self.main_keyboard})
+    def write_msg(self, user_id, message, keyboard=None):
+        if keyboard is None:
+            keyboard = self.main_keyboard
+        self.vk_session.method('messages.send', {'user_id': user_id, 'message': message,  'random_id': 0, 'keyboard': keyboard})
 
     def send_person(self, user_id, message, photos, keyboard):
         resp = self.vk_session.method('messages.send', {'user_id': user_id, 'message': message,  'random_id': 0, 'keyboard': keyboard, 'attachment': photos})
 
     def process_event(self, event):
         request = event.text.lower()
-        user = self.db.user_add(event.user_id)
+        user = self.db.user_get(event.user_id)
+        if request == "начать":
+            self.button_start(event.user_id)
+        if user is None:
+            self.ask_auth(event.user_id)
+            return
         if request == "следующий":
             self.button_next(user)
         elif request == "добавить в избранное":
@@ -72,18 +78,23 @@ class VKinderBot:
             self.button_delete_from_fav(user, event.payload)
         elif request == "избранное":
             self.button_show_favourites(user)
-        elif request == "начать":
-            self.button_start(user)
         else:
             pass
 
-    def button_start(self, user):
-        self.write_msg(user.id, "Добро пожаловать в VKinder бот.")
+    def ask_auth(self, user_id):
+        keyboard = VkKeyboard(inline=True)
+        keyboard.add_openlink_button(label='Авторизоваться', link=self.auth_link)
+        keyboard = keyboard.get_keyboard()
+        msg = 'Для корректной работы требуется авторизация'
+        self.write_msg(user_id, msg, keyboard)
+
+    def button_start(self, user_id):
+        self.write_msg(user_id, "Добро пожаловать в VKinder бот.")
 
     def button_next(self, user):
         user_info = get_user_info(user.id)
-        person_id, offset = search_users(user_info, user.offset)
-        person_info = get_info(person_id)
+        person_id, offset = search_users(user.token, user_info, user.offset)
+        person_info = get_info(user.token, person_id)
         message = f"{person_info['Имя']}\n{person_info['Ссылка']}\n{person_info['Дата рождения']}"
         photos_list = list()
         for photo_id in person_info['Фото']:
@@ -120,8 +131,11 @@ class VKinderBot:
 
     def button_show_favourites(self, user):
         fav_list = self.db.favourites_get(user.id)
+        if len(fav_list) == 0:
+            self.write_msg(user.id, 'В списке избранного пусто')
+            return
         for person_id in fav_list:
-            person_info = get_info(person_id)
+            person_info = get_info(user.token, person_id)
             message = f"{person_info['Имя']}\n{person_info['Ссылка']}\n{person_info['Дата рождения']}"
             photos_list = list()
             for photo_id in person_info['Фото']:

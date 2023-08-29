@@ -1,3 +1,6 @@
+import os
+
+from dotenv import load_dotenv
 import psycopg2
 from psycopg2 import Error
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -6,13 +9,15 @@ from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import inspect
 
-
+load_dotenv()
 Base = declarative_base()
 
 class ModelProcessor:
-    def __init__(self, user, password):
-        create_db(user, password)
-        dns = f'postgresql://{user}:{password}@localhost:5432/vkinder_db'
+    def __init__(self):
+        USER = os.getenv('USER_DB')
+        PASSWORD = os.getenv('PASSWORD_DB')
+        create_db(USER, PASSWORD)
+        dns = f'postgresql://{USER}:{PASSWORD}@localhost:5432/vkinder_db'
         engine = sq.create_engine(dns)
 
         insp = inspect(engine)
@@ -27,20 +32,20 @@ class ModelProcessor:
             s.add(user)
             s.commit()
 
-    def user_add(self, user_id):
+    def user_get(self, user_id):
         with self.Session() as s:
             user = s.query(User).get(user_id)
-            if user is None:
-                user = User(
-                    id = user_id,
-                    offset = 0,
-                    page = 'main',
-                    last_person = 0)
-                s.add(user)
-                s.flush()
-                s.refresh(user)
-                s.commit()
-        return user
+            return user
+
+    def user_add(self, user_id, token):
+        with self.Session() as s:
+            user = User(
+                id = user_id,
+                offset = 0,
+                token = token,
+                last_person = 0)
+            s.add(user)
+            s.commit()
 
     def blacklist_add(self, user_id):
         with self.Session() as s:
@@ -84,7 +89,7 @@ class User(Base):
     id = sq.Column(sq.Integer, primary_key=True)
     last_person = sq.Column(sq.Integer)
     offset = sq.Column(sq.Integer)
-    page = sq.Column(sq.String(length=6))
+    token = sq.Column(sq.String)
 
 
 class Favourites(Base):
