@@ -3,7 +3,6 @@ import json
 from model import ModelProcessor
 from search import get_user_info, search_users, get_info
 
-import requests
 import dotenv
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
@@ -19,38 +18,18 @@ class VKinderBot:
         self.auth_link = os.getenv('AUTH_LINK')
         self.vk_session = vk_api.VkApi(token=self.token)
         self.longpoll = VkLongPoll(self.vk_session)
-        self.create_buttons()
+        self.create_main_keyboard()
         self.db = ModelProcessor()
 
-    def create_buttons(self):
-        def get_but(text, color):
-            return {
-                "action": {
-                    "type": "text",
-                    "payload": "{\"button\": \"" + "1" + "\"}",
-                    "label": f"{text}"
-                },
-                "color": f"{color}"
-            }
- 
-        main_keyboard = {
-            "one_time" : False,
-            "buttons" : [
-                [get_but('Добавить в избранное', 'positive'), get_but('Следующий', 'primary')],
-                [get_but('Больше не показывать', 'negative'), get_but('Избранное', 'secondary')]
-            ]
-        }
-        main_keyboard = json.dumps(main_keyboard, ensure_ascii = False).encode('utf-8')
-        self.main_keyboard = str(main_keyboard.decode('utf-8'))
-
-        favourites_keyboard = {
-            "one_time" : False,
-            "buttons" : [
-                [get_but('На главную', 'positive')]
-            ]
-        }
-        favourites_keyboard = json.dumps(favourites_keyboard, ensure_ascii = False).encode('utf-8')
-        self.favourites_keyboard = str(favourites_keyboard.decode('utf-8'))
+    def create_main_keyboard(self):
+        main_keyboard = VkKeyboard()
+        main_keyboard.add_button(label='Добавить в избранное', color=VkKeyboardColor.POSITIVE)
+        main_keyboard.add_button(label='Следующий', color=VkKeyboardColor.PRIMARY)
+        main_keyboard.add_line()
+        main_keyboard.add_button(label='Больше не показывать', color=VkKeyboardColor.NEGATIVE)
+        main_keyboard.add_button(label='Избранное', color=VkKeyboardColor.SECONDARY)
+        main_keyboard = main_keyboard.get_keyboard()
+        self.main_keyboard = main_keyboard
 
     def write_msg(self, user_id, message, keyboard=None):
         if keyboard is None:
