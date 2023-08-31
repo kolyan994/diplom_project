@@ -4,4 +4,4 @@ flask
 requests
 sqlalchemy
 psycopg2-binary
-flask-async
+flask[async]
