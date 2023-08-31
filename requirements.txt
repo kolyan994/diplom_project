@@ -1,0 +1,6 @@
+python-dotenv
+vk_api
+flask
+requests
+sqlalchemy
+psycopg2-binary
