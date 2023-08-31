@@ -39,13 +39,13 @@ class VKinderBot:
     def send_person(self, user_id, message, photos, keyboard):
         resp = self.vk_session.method('messages.send', {'user_id': user_id, 'message': message,  'random_id': 0, 'keyboard': keyboard, 'attachment': photos})
 
-    def process_event(self, event):
-        request = event.text.lower()
-        user = self.db.user_get(event.user_id)
+    def process_event(self, user_id, text, payload=None):
+        request = text.lower()
+        user = self.db.user_get(user_id)
         if request == "начать":
-            self.button_start(event.user_id)
+            self.button_start(user_id)
         if user is None:
-            self.ask_auth(event.user_id)
+            self.ask_auth(user_id)
             return
         if request == "следующий":
             self.button_next(user)
@@ -54,7 +54,7 @@ class VKinderBot:
         elif request == "больше не показывать":
             self.button_add_to_blacklist(user)
         elif request == "удалить":
-            self.button_delete_from_fav(user, event.payload)
+            self.button_delete_from_fav(user, payload)
         elif request == "избранное":
             self.button_show_favourites(user)
         else:
@@ -128,10 +128,3 @@ class VKinderBot:
     def button_delete_from_fav(self, user, delete_id):
         self.db.favourites_delete(user.id, delete_id)
         self.write_msg(user.id, 'Пользователь удален из избранного')
-
-    def start_bot(self):
-        for event in self.longpoll.listen():
-            if event.type == VkEventType.MESSAGE_NEW:
-                if event.to_me:
-                    th = Thread(target=self.process_event, args=(event,))
-                    th.start()

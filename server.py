@@ -2,13 +2,15 @@ import os
 from threading import Thread
 import time
 from model import ModelProcessor
+from bot import VKinderBot
 
 import requests
-from flask import Flask, request as r
+from flask import Flask, json, request as r
 from dotenv import load_dotenv
 
 
 app = Flask(__name__)
+vk_bot = VKinderBot()
 load_dotenv()
 
 
@@ -20,8 +22,24 @@ PARAMS = {
 }
 
 
+@app.route('/callback', methods=['POST'])
+async def callback():
+    data = json.loads(r.data)
+    if "type" not in data:
+        return "Nope"
+    if data.get('type') != 'message_new':
+        return 'ok'
+    message = data['object']['message']
+    user_id = message['from_id']
+    text = message['text']
+    payload = message.get('payload')
+    th = Thread(target=vk_bot.process_event, args=(user_id, text, payload))
+    th.start()
+    return 'ok'
+
+
 @app.route('/auth', methods=['GET'])
-def get_code():
+async def auth():
     code = r.args.get('code')
     print(code)
     th = Thread(target=get_token, args=(code,))
@@ -41,4 +59,5 @@ def get_token(code):
     print(f'token: {access_token}')
 
 def start_server():
-    app.run(host="0.0.0.0", port='80')
+    host, port = '0.0.0.0', '80'
+    app.run(host=host, port=port)
